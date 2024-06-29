@@ -1,0 +1,15 @@
+NFTSocialHub/
+├── contracts/
+│   └── NFTSocialHub.sol
+├── server/
+│   ├── server.js
+│   └── NFTSocialHub.json
+├── frontend/
+│   ├── src/
+│   │   ├── App.js
+│   │   └── index.js
+│   ├── public/
+│   │   └── index.html
+├── truffle-config.js
+├── package.json
+└── README.md
