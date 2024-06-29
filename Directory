@@ -1,60 +1,39 @@
-NFTSocialHub/
-├── contracts/
-│   └── NFTSocialHub.sol
-├── server/
-│   ├── server.js
-│   └── NFTSocialHub.json
-├── frontend/
-│   ├── src/
-│   │   ├── App.js
-│   │   └── index.js
-│   ├── public/
-│   │   └── index.html
-├── truffle-config.js
-├── package.json
-└── README.md
-// contracts/NFTSocialHub.sol
+// server/server.js
 
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+const express = require('express');
+const bodyParser = require('body-parser');
+const Web3 = require('web3');
+const contractABI = require('./NFTSocialHub.json');
+const app = express();
+const port = 3000;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+const web3 = new Web3(new Web3.providers.HttpProvider('https://base-network-node-url'));
+const contractAddress = 'your_contract_address';
+const nftContract = new web3.eth.Contract(contractABI, contractAddress);
 
-contract NFTSocialHub is ERC721, Ownable {
-    using Counters for Counters.Counter;
-    Counters.Counter private _tokenIds;
+app.use(bodyParser.json());
 
-    struct NFT {
-        uint256 id;
-        string uri;
-        address creator;
-    }
+app.post('/mint', async (req, res) => {
+    const { tokenURI, fromAddress, privateKey } = req.body;
 
-    mapping(uint256 => NFT) public nfts;
+    const tx = {
+        from: fromAddress,
+        to: contractAddress,
+        gas: 2000000,
+        data: nftContract.methods.mintNFT(tokenURI).encodeABI(),
+    };
 
-    constructor() ERC721("NFTSocialHub", "NSH") {}
+    const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+    web3.eth.sendSignedTransaction(signedTx.rawTransaction)
+        .on('receipt', (receipt) => {
+            res.send({ success: true, transactionHash: receipt.transactionHash });
+        })
+        .on('error', (error) => {
+            res.status(500).send({ success: false, error: error.message });
+        });
+});
 
-    function mintNFT(string memory tokenURI) public returns (uint256) {
-        _tokenIds.increment();
-        uint256 newItemId = _tokenIds.current();
-        _mint(msg.sender, newItemId);
-        _setTokenURI(newItemId, tokenURI);
-
-        nfts[newItemId] = NFT(newItemId, tokenURI, msg.sender);
-
-        return newItemId;
-    }
-
-    function _setTokenURI(uint256 tokenId, string memory tokenURI) internal virtual {
-        require(_exists(tokenId), "ERC721Metadata: URI set of nonexistent token");
-        nfts[tokenId].uri = tokenURI;
-    }
-
-    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-        require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
-        return nfts[tokenId].uri;
-    }
-}
+app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+});
 
